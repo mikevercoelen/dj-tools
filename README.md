@@ -15,11 +15,17 @@ npm install dj-tools -g
 
 DJ-tools uses Soulseek to download everything, to get started please run `configure` and insert your Soulseek credentials.
 
+
+![](https://raw.githubusercontent.com/mikevercoelen/dj-tools/master/docs/images/configure.gif)
+
+
 ```
 dj-tools configure
 ```
 
 ## Downloading songs
+
+![](https://raw.githubusercontent.com/mikevercoelen/dj-tools/master/docs/images/download.gif)
 
 ```
 dj-tools download
