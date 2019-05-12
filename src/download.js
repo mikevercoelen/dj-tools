@@ -12,6 +12,7 @@ const log = require('./utils/log')
 const pkg = require('../package.json')
 const open = require('open')
 const prettyMs = require('pretty-ms')
+const debug = require('debug')(pkg.name)
 
 const PKG_NAME = pkg.name
 
@@ -178,6 +179,8 @@ const download = async ({
     const expiredDownloads = []
     const failedDownloads = []
 
+    debug('Starting to download tracks with concurrency: ' + downloadConcurrency)
+
     await Promise.all(trackList.map((track) => {
       return limit(async () => {
         await downloadTrack(track)
@@ -235,7 +238,13 @@ const download = async ({
     }
   }
 
+  if (!downloadConcurrency || downloadConcurrency === 0) {
+    throw new Error(`Download concurrency was ${downloadConcurrency}. Please re-start dj-tools configure, and set a correct concurrency value`)
+  }
+
   // Here we go:
+
+  debug('Connecting to Soulseek')
 
   await slsk.connect({
     username,
@@ -245,6 +254,9 @@ const download = async ({
   log.info(`Connected to Soulseek.`)
 
   const trackList = await getTrackList()
+
+  debug('Tracklist complete, has ' + trackList.length + ' items')
+
   const { downloadedTrackCount } = await downloadTracks(trackList)
 
   if (downloadedTrackCount === 0) {
