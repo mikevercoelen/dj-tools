@@ -12,6 +12,7 @@ const cd = require('./utils/cd')
 const pLimit = require('p-limit')
 const log = require('./utils/log')
 const pkg = require('../package.json')
+const open = require('open')
 
 const PKG_NAME = pkg.name
 
@@ -168,14 +169,16 @@ const download = async ({
   const shouldBurn = await getShouldBurn()
   const shouldKeepFolder = await getShouldKeepFolder()
 
-  if (!shouldKeepFolder) {
-    await fsExtra.remove(await getDownloadFolder())
-  }
-
   if (shouldBurn) {
     await cd.burnFolder({
       folderName: await getDownloadFolder()
     })
+  }
+
+  if (!shouldKeepFolder) {
+    await fsExtra.remove(await getDownloadFolder())
+  } else {
+    await open(await getDownloadFolder())
   }
 
   return true

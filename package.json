@@ -51,6 +51,7 @@
     "fs-extra": "^8.0.0",
     "inquirer": "^6.3.1",
     "moment": "^2.24.0",
+    "open": "^6.3.0",
     "ora": "^3.4.0",
     "p-limit": "^2.2.0",
     "pretty-bytes": "^5.2.0",
