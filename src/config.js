@@ -1,3 +1,4 @@
 const Configstore = require('configstore')
 const pkg = require('../package.json')
-module.exports = new Configstore(pkg.name)
+const configStore = new Configstore(pkg.name)
+module.exports = configStore
