@@ -1,0 +1,70 @@
+{
+  "name": "dj-tools",
+  "version": "1.0.0",
+  "license": "MIT",
+  "main": "./src/index.js",
+  "bin": {
+    "dj-tools": "./bin/dj-tools.js"
+  },
+  "author": "Mike Vercoelen <mike.vercoelen@gmail.com>",
+  "description": "Searches the internet for 320kbps mp3 files, download them, and optionally burn them to disk.",
+  "bugs": {
+    "url": "https://github.com/mikevercoelen/dj-tools/issues"
+  },
+  "homepage": "https://github.com/mikevercoelen/dj-tools#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikevercoelen/dj-tools.git"
+  },
+  "keywords": [
+    "dj-tools",
+    "soulseek",
+    "mp3",
+    "download",
+    "burn",
+    "dj"
+  ],
+  "scripts": {
+    "start": "node -r dotenv/config ./src/index.js",
+    "lint-fix": "eslint . --fix"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test"
+    }
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "engines": {
+    "node": "10.15.3",
+    "npm": "6.4.1"
+  },
+  "dependencies": {
+    "chalk": "^2.4.2",
+    "commander": "^2.20.0",
+    "configstore": "^4.0.0",
+    "fs-extra": "^8.0.0",
+    "inquirer": "^6.3.1",
+    "moment": "^2.24.0",
+    "ora": "^3.4.0",
+    "p-limit": "^2.2.0",
+    "pretty-bytes": "^5.2.0",
+    "slsk-client": "^1.1.0"
+  },
+  "devDependencies": {
+    "dotenv": "^8.0.0",
+    "eslint": "^5.16.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.17.2",
+    "eslint-plugin-node": "^9.0.1",
+    "eslint-plugin-promise": "^4.1.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "husky": "^2.2.0",
+    "lint-staged": "^8.1.6"
+  }
+}
