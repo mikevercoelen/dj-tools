@@ -3,8 +3,6 @@ const fs = require('fs')
 const fsExtra = require('fs-extra')
 const slsk = require('./utils/slsk')
 const inquirer = require('inquirer')
-const util = require('util')
-const writeFile = util.promisify(fs.writeFile)
 const prettyBytes = require('pretty-bytes')
 const ora = require('ora')
 const moment = require('moment')
@@ -13,6 +11,7 @@ const pLimit = require('p-limit')
 const log = require('./utils/log')
 const pkg = require('../package.json')
 const open = require('open')
+const prettyMs = require('pretty-ms')
 
 const PKG_NAME = pkg.name
 
@@ -20,7 +19,10 @@ const download = async ({
   username,
   password,
   downloadConcurrency = 6,
-  searchDuration = 2000
+  searchDuration = 2000,
+  maxDownloadTime = 30000,
+  maxExpireRetries = 2,
+  maxFailRetries = 2
 }) => {
   let _downloadFolder = null
 
@@ -77,12 +79,15 @@ const download = async ({
       .filter(it => it.slots)
 
     const choices = files
-      .reduce((output, res) => {
-        const name = getTrackNameFromRes(res)
+      .reduce((output, track) => {
+        const name = getTrackNameFromRes(track)
+
+        track.__expireTries = 0
+        track.__failTries = 0
 
         output.push({
-          name: `${name} (${prettyBytes(res.size)}) - ${res.file} - ${res.bitrate}kbps - ${res.speed}`,
-          value: res
+          name: `${name} (${prettyBytes(track.size)}) - ${track.file} - ${track.bitrate}kbps - ${track.speed}`,
+          value: track
         })
 
         return output
@@ -114,7 +119,7 @@ const download = async ({
 
     if (selectedFile === false) {
       log.info('No search results found. Please try a new search query.')
-      return getTrackList(searchDuration, currentTrackList)
+      return getTrackList(currentTrackList)
     }
 
     currentTrackList.push(selectedFile)
@@ -127,37 +132,107 @@ const download = async ({
     }])
 
     if (shouldContinue) {
-      return getTrackList(searchDuration, currentTrackList)
+      return getTrackList(currentTrackList)
     }
 
     return currentTrackList
   }
 
-  const downloadTrack = async (track) => {
+  const downloadStreams = {}
+
+  const downloadTrack = async (track) => new Promise(async (resolve, reject) => {
     const name = getTrackNameFromRes(track)
     const downloadPath = path.resolve(await getDownloadFolder(), name)
-
     const spinner = ora(`Downloading file at: ${downloadPath}`).start()
+    const writeStream = fs.createWriteStream(downloadPath)
 
-    const downloadRes = await slsk.download({
-      file: track,
-      path: downloadPath
+    setTimeout(async () => {
+      downloadStream.destroy()
+      spinner.stop()
+      reject(new Error('expired'))
+    }, maxDownloadTime)
+
+    const downloadStream = await slsk.downloadStream({
+      file: track
     })
 
-    await writeFile(downloadPath, downloadRes.buffer)
-    spinner.stop()
-  }
+    downloadStream.on('data', (chunk) => {
+      writeStream.write(chunk)
+    })
 
-  const downloadTracks = async trackList => {
+    downloadStream.on('error', (error) => {
+      reject(error)
+    })
+
+    downloadStream.on('end', () => {
+      writeStream.end()
+      spinner.stop()
+      resolve()
+    })
+
+    downloadStreams[name] = downloadStream
+  })
+
+  const downloadTracks = async (trackList, downloadedTrackCount = 0) => {
     const limit = pLimit(downloadConcurrency)
+    const expiredDownloads = []
+    const failedDownloads = []
 
-    return Promise.all(trackList.map((track) => {
+    await Promise.all(trackList.map((track) => {
       return limit(async () => {
         await downloadTrack(track)
+          .then(() => {
+            downloadedTrackCount++
+          })
+          .catch((error) => {
+            const name = getTrackNameFromRes(track)
+
+            if (error.message === 'expired') {
+              log.warn(`Download '${name}' expired (max: ${prettyMs(maxDownloadTime)})`)
+
+              if (track.__expireTries < maxExpireRetries) {
+                expiredDownloads.push(track)
+              }
+
+              track.__expireTries++
+            } else {
+              log.warn(`Download '${name}' failed: ${error}`)
+
+              if (track.__failTries < maxFailRetries) {
+                failedDownloads.push(track)
+              }
+
+              track.__failTries++
+            }
+          })
       })
     })).catch(error => {
       console.error(error)
     })
+
+    let retries = []
+
+    if (expiredDownloads.length > 0) {
+      retries = [
+        ...retries,
+        ...expiredDownloads
+      ]
+    }
+
+    if (failedDownloads.length > 0) {
+      retries = [
+        ...retries,
+        ...failedDownloads
+      ]
+    }
+
+    if (retries.length > 0) {
+      return downloadTracks(retries, downloadedTrackCount)
+    }
+
+    return {
+      downloadedTrackCount
+    }
   }
 
   // Here we go:
@@ -170,7 +245,12 @@ const download = async ({
   log.info(`Connected to Soulseek.`)
 
   const trackList = await getTrackList()
-  await downloadTracks(trackList)
+  const { downloadedTrackCount } = await downloadTracks(trackList)
+
+  if (downloadedTrackCount === 0) {
+    log.warn('Downloaded no tracks.')
+    return true
+  }
 
   const shouldBurn = await getShouldBurn()
   const downloadFolder = await getDownloadFolder()

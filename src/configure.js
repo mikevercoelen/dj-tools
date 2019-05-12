@@ -21,7 +21,7 @@ const configure = async () => {
     type: 'input',
     name: 'SEARCH_DURATION',
     message: 'How long do you want dj-tools to search? (in miliseconds)',
-    default: 2000
+    default: 4000
   }])
 
   try {

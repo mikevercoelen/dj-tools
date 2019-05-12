@@ -54,7 +54,9 @@
     "open": "^6.3.0",
     "ora": "^3.4.0",
     "p-limit": "^2.2.0",
+    "p-timeout": "^3.1.0",
     "pretty-bytes": "^5.2.0",
+    "pretty-ms": "^5.0.0",
     "slsk-client": "^1.1.0"
   },
   "devDependencies": {
