@@ -30,33 +30,6 @@ const download = async ({
     return match[0] ? match[0] : file
   }
 
-  const getTrackResQuestion = (searchQuery, searchRes) => {
-    const files = searchRes
-      .filter(it => path.extname(it.file) === '.mp3')
-      .filter(it => it.bitrate === 320)
-      .sort((a, b) => (a.size / a.speed) - (b.size / b.speed))
-      .filter(it => it.slots)
-
-    const choices = files
-      .reduce((output, res) => {
-        const name = getTrackNameFromRes(res)
-
-        output.push({
-          name: `${name} (${prettyBytes(res.size)}) - ${res.file} - ${res.bitrate}kbps - ${res.speed}`,
-          value: res
-        })
-
-        return output
-      }, [])
-
-    return {
-      type: 'list',
-      name: searchQuery,
-      message: `Select a download for your track:`,
-      choices
-    }
-  }
-
   const getShouldBurn = async () => {
     const { shouldBurn } = await inquirer.prompt([{
       type: 'confirm',
@@ -97,8 +70,35 @@ const download = async ({
       timeout: searchDuration
     })
 
-    const questions = getTrackResQuestion(searchQuery, searchRes)
-    const answers = await inquirer.prompt(questions)
+    const files = searchRes
+      .filter(it => path.extname(it.file) === '.mp3')
+      .filter(it => it.bitrate === 320)
+      .sort((a, b) => (a.size / a.speed) - (b.size / b.speed))
+      .filter(it => it.slots)
+
+    const choices = files
+      .reduce((output, res) => {
+        const name = getTrackNameFromRes(res)
+
+        output.push({
+          name: `${name} (${prettyBytes(res.size)}) - ${res.file} - ${res.bitrate}kbps - ${res.speed}`,
+          value: res
+        })
+
+        return output
+      }, [])
+
+    if (choices.length === 0) {
+      return false
+    }
+
+    const answers = await inquirer.prompt({
+      type: 'list',
+      name: searchQuery,
+      message: `Select a download for your track:`,
+      choices
+    })
+
     return answers[searchQuery]
   }
 
@@ -111,6 +111,12 @@ const download = async ({
     }])
 
     const selectedFile = await getTrackFile(searchDuration, searchQuery)
+
+    if (selectedFile === false) {
+      log.info('No search results found. Please try a new search query.')
+      return getTrackList(searchDuration, currentTrackList)
+    }
+
     currentTrackList.push(selectedFile)
 
     const { shouldContinue } = await inquirer.prompt([{
@@ -167,18 +173,22 @@ const download = async ({
   await downloadTracks(trackList)
 
   const shouldBurn = await getShouldBurn()
-  const shouldKeepFolder = await getShouldKeepFolder()
+  const downloadFolder = await getDownloadFolder()
 
   if (shouldBurn) {
     await cd.burnFolder({
-      folderName: await getDownloadFolder()
+      folderName: downloadFolder
     })
-  }
 
-  if (!shouldKeepFolder) {
-    await fsExtra.remove(await getDownloadFolder())
+    await open(downloadFolder)
   } else {
-    await open(await getDownloadFolder())
+    const shouldKeepFolder = await getShouldKeepFolder()
+
+    if (!shouldKeepFolder) {
+      await fsExtra.remove(downloadFolder)
+    } else {
+      await open(downloadFolder)
+    }
   }
 
   return true
