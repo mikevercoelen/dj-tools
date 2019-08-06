@@ -31,6 +31,18 @@ dj-tools configure
 dj-tools download
 ```
 
+## Debugging
+
+```
+DEBUG=dj-tools dj-tools download
+```
+
+For full details (including the underlying slsk-client):
+
+```
+DEBUG=* dj-tools download
+```
+
 ## Future
 
 Currently working on an Electron version, so we can easily find high quality mp3 tunes, download the and optionally burn them.
